@@ -1,4 +1,4 @@
-# 🎵 抖音直播弹幕 AI 实时分析平台
+# 🎵 抖音直播弹幕智能实时分析平台
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688)](https://fastapi.tiangolo.com/)
@@ -122,7 +122,9 @@ douyin-danmu-analyzer/
 
 ### 整体大屏
 
-![大屏概览](screenshots/overview.png)
+![大屏概览]
+<img width="2155" height="1244" alt="image" src="https://github.com/user-attachments/assets/45f951a7-c482-4a74-b29e-75248c23e2be" />
+
 
 ### 实时弹幕列表 + 实时情绪环形图
 
