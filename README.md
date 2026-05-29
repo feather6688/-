@@ -123,20 +123,27 @@ douyin-danmu-analyzer/
 ### 整体大屏
 
 ![大屏概览]
-<img width="2155" height="1244" alt="image" src="https://github.com/user-attachments/assets/45f951a7-c482-4a74-b29e-75248c23e2be" />
+<img width="2560" height="1330" alt="image" src="https://github.com/user-attachments/assets/e75fb482-660f-4002-8503-51b3e92472e9" />
 
 
 ### 实时弹幕列表 + 实时情绪环形图
 
-![弹幕列表](screenshots/danmu-list.png)
+![弹幕列表]
+<img width="410" height="1210" alt="image" src="https://github.com/user-attachments/assets/b4f47060-43d0-4264-8d2d-a4f213a485f5" />
+<img width="319" height="295" alt="image" src="https://github.com/user-attachments/assets/1edbcffb-1fda-440d-b49b-4f2df8025a6e" />
+
 
 ### AI 累计情绪趋势 + 计时
 
-![情绪趋势](screenshots/sentiment-trend.png)
+![情绪趋势]
+<img width="2106" height="508" alt="image" src="https://github.com/user-attachments/assets/f0fca9b8-e985-41ed-897e-4adbd2770185" />
+
 
 ### 热词统计 + 用户排行
 
-![热词排行](screenshots/wordcloud-rank.png)
+![热词排行]
+<img width="2105" height="691" alt="image" src="https://github.com/user-attachments/assets/d00bad98-98ca-4587-949f-33ea1d61b6e7" />
+
 
 > 请将实际截图放入 `screenshots/` 目录并替换上述路径。
 
