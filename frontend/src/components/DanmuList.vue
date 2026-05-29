@@ -8,7 +8,7 @@ DanmuList.vue — 实时滚动弹幕列表
       实时弹幕列表
       <span class="dl-count">({{ showList.length }})</span>
     </div>
-    <div class="dl-scroll" ref="scrollBox">
+    <div class="dl-scroll" ref="scrollBox" @scroll="onScroll">
       <div v-if="showList.length === 0" class="dl-empty">
         <div style="font-size:32px;margin-bottom:8px;">⏳</div>
         <div>等待弹幕中...</div>
@@ -35,16 +35,29 @@ const props = defineProps({ list: { type: Array, required: true } })
 
 const scrollBox = ref(null)
 const MAX = 100
+const autoScroll = ref(true)  // 智能滚动开关
 
 const showList = computed(() => {
   if (props.list.length <= MAX) return props.list
   return props.list.slice(props.list.length - MAX)
 })
 
-// 自动滚到底部
+// 判断是否在底部附近（阈值 50px）
+function isNearBottom() {
+  const el = scrollBox.value
+  if (!el) return false
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 50
+}
+
+// 用户手动滚动时判断是否退出/恢复自动滚动
+function onScroll() {
+  autoScroll.value = isNearBottom()
+}
+
+// 新弹幕到来时，仅在底部附近才自动滚动
 watch(() => props.list.length, async () => {
   await nextTick()
-  if (scrollBox.value) {
+  if (autoScroll.value && scrollBox.value) {
     scrollBox.value.scrollTop = scrollBox.value.scrollHeight
   }
 })

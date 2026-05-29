@@ -10,7 +10,7 @@ App.vue — 根组件
     <header class="header">
       <div class="header-left">
         <span class="logo-icon">&#9654;</span>
-        <h1 class="title">抖音直播弹幕 AI 实时分析平台</h1>
+        <h1 class="title">抖音直播弹幕智能实时分析平台</h1>
       </div>
       <div class="header-right">
         <div class="status-badge" :class="{ connected: wsConnected }">
@@ -28,28 +28,46 @@ App.vue — 根组件
       </div>
     </header>
 
-    <!-- 主内容区 -->
-    <main class="main-content">
-      <!-- 左侧：弹幕列表 -->
-      <section class="panel">
+    <!-- 主体区域：弹幕列表(左) + 情绪+主内容(右) -->
+    <div class="body-area">
+      <!-- 左侧：实时弹幕列表（全高） -->
+      <section class="panel danmu-panel">
         <DanmuList :list="danmuList" />
       </section>
 
-      <!-- 中间：热词 + 趋势 -->
-      <section class="panel-center">
-        <div class="chart-row panel">
-          <WordCloud :words="topWords" />
-        </div>
-        <div class="chart-row panel">
-          <TrendChart :data="trendData" />
-        </div>
-      </section>
+      <!-- 右侧：情绪区 + 主内容 上下堆叠 -->
+      <div class="right-area">
+        <!-- 情绪分析区 -->
+        <section class="sentiment-area">
+          <div class="sentiment-row">
+            <div class="panel sentiment-left">
+              <RealtimeSentiment :data="realtimeSentiment" />
+            </div>
+            <div class="panel sentiment-right">
+              <SentimentChart :data="sentimentData" :elapsed="elapsedSeconds" />
+            </div>
+          </div>
+          <div class="panel sentiment-bottom">
+            <RealtimeTrendChart :data="realtimeTrendData" />
+          </div>
+        </section>
 
-      <!-- 右侧：用户排行 -->
-      <section class="panel">
-        <UserRank :users="topUsers" />
-      </section>
-    </main>
+        <!-- 主内容区 -->
+        <main class="main-content">
+          <section class="panel-center">
+            <div class="chart-row panel">
+              <WordCloud :words="topWords" />
+            </div>
+            <div class="chart-row panel">
+              <TrendChart :data="trendData" />
+            </div>
+          </section>
+          <section class="panel">
+            <UserRank :users="topUsers" />
+          </section>
+        </main>
+      </div>
+    </div>
 
   </div>
 </template>
@@ -62,6 +80,9 @@ import DanmuList from './components/DanmuList.vue'
 import WordCloud from './components/WordCloud.vue'
 import TrendChart from './components/TrendChart.vue'
 import UserRank from './components/UserRank.vue'
+import SentimentChart from './components/SentimentChart.vue'
+import RealtimeSentiment from './components/RealtimeSentiment.vue'
+import RealtimeTrendChart from './components/RealtimeTrendChart.vue'
 
 console.log('[App.vue] 子组件导入完成')
 
@@ -80,6 +101,67 @@ const userCountMap = reactive(new Map())
 let currentTrendBucket = ''
 let currentTrendCount = 0
 const MAX_TREND_BUCKETS = 12
+
+// ============ 情绪追踪状态 ============
+const sentimentData = ref([])
+let sentimentBucket = ''
+let sentimentPos = 0
+let sentimentNeu = 0
+let sentimentNeg = 0
+const MAX_SENTIMENT_BUCKETS = 20  // 情绪图保留更多数据点，展示更长趋势
+const MAX_REALTIME_TREND = 30     // 实时情绪波动最多 30 个采样点
+
+// ============ 实时情绪 + 全局累计（从后端 WebSocket 接收） ============
+const realtimeSentiment = ref({ positive: 0, neutral: 0, negative: 0 })
+const globalSentiment = ref({ positive: 0, neutral: 0, negative: 0 })
+
+// ============ 开播计时（从第一条弹幕开始） ============
+const startTime = ref(0)
+const elapsedSeconds = ref(0)
+let elapsedTimer = null
+
+function startElapsedTimer() {
+  if (elapsedTimer) return
+  startTime.value = Date.now()
+  elapsedTimer = setInterval(() => {
+    elapsedSeconds.value = Math.floor((Date.now() - startTime.value) / 1000)
+  }, 1000)
+}
+
+// ============ 实时情绪波动趋势（每5秒采样一次） ============
+const realtimeTrendData = ref([])
+let realtimeTrendTimer = null
+
+function initRealtimeTrend() {
+  const now = new Date()
+  const result = []
+  for (let i = MAX_REALTIME_TREND - 1; i >= 0; i--) {
+    const t = new Date(now.getTime() - i * 5000)
+    const h = String(t.getHours()).padStart(2, '0')
+    const m = String(t.getMinutes()).padStart(2, '0')
+    const s = String(Math.floor(t.getSeconds() / 5) * 5).padStart(2, '0')
+    result.push({ time: h + ':' + m + ':' + s, positive: 0, neutral: 0, negative: 0 })
+  }
+  realtimeTrendData.value = result
+}
+
+function sampleRealtimeTrend() {
+  const now = new Date()
+  const h = String(now.getHours()).padStart(2, '0')
+  const m = String(now.getMinutes()).padStart(2, '0')
+  const s = String(Math.floor(now.getSeconds() / 5) * 5).padStart(2, '0')
+  const bucket = h + ':' + m + ':' + s
+  const arr = realtimeTrendData.value
+  // 避免同一桶重复写入
+  if (arr.length > 0 && arr[arr.length - 1].time === bucket) return
+  arr.push({
+    time: bucket,
+    positive: realtimeSentiment.value.positive,
+    neutral: realtimeSentiment.value.neutral,
+    negative: realtimeSentiment.value.negative
+  })
+  while (arr.length > MAX_REALTIME_TREND) arr.shift()
+}
 
 // ============ 计算属性 ============
 // 在线观众 = 所有发言过的唯一用户数（一直累加）
@@ -128,30 +210,51 @@ function getTrendBucket() {
   return h + ':' + m + ':' + s
 }
 
-// ============ 中文分词（简单2-gram） ============
-function extractWords(text) {
-  // 去掉标点符号
-  const cleaned = text.replace(/[，。！？、；：""''（）【】\s\r\n\d]+/g, ' ')
-  const words = []
-  for (const seg of cleaned.split(' ')) {
-    if (seg.length < 2) continue
-    for (let i = 0; i < seg.length - 1; i++) {
-      words.push(seg.slice(i, i + 2))
-    }
+// ============ 累计情绪趋势（从开播持续累加，不清零） ============
+function initSentimentData() {
+  const now = new Date()
+  const result = []
+  for (let i = MAX_SENTIMENT_BUCKETS - 1; i >= 0; i--) {
+    const t = new Date(now.getTime() - i * 5000)
+    const h = String(t.getHours()).padStart(2, '0')
+    const m = String(t.getMinutes()).padStart(2, '0')
+    const s = String(Math.floor(t.getSeconds() / 5) * 5).padStart(2, '0')
+    result.push({ time: h + ':' + m + ':' + s, positive: 0, neutral: 0, negative: 0 })
   }
-  return words
+  sentimentData.value = result
+  sentimentBucket = result[result.length - 1].time
+  // 累计计数器：从开播起持续累加，永远不清零
+  sentimentPos = 0
+  sentimentNeu = 0
+  sentimentNeg = 0
+}
+
+function updateSentimentBucket(bucket) {
+  if (bucket !== sentimentBucket) {
+    const arr = sentimentData.value
+    // 新桶继承当前累计值（不清零，累计趋势持续增长）
+    arr.push({ time: bucket, positive: sentimentPos, neutral: sentimentNeu, negative: sentimentNeg })
+    while (arr.length > MAX_SENTIMENT_BUCKETS) {
+      arr.shift()
+    }
+    sentimentBucket = bucket
+    // 注意：这里不清零 sentimentPos/Neu/Neg，保持累计增长
+  }
 }
 
 // ============ 处理弹幕 ============
 function processDanmu(danmu) {
+  // 第一条弹幕触发计时
+  startElapsedTimer()
+
   // 1. 更新列表
   danmuList.value.push(danmu)
   while (danmuList.value.length > MAX_DANMU) {
     danmuList.value.shift()
   }
 
-  // 2. 更新热词
-  const words = extractWords(danmu.content)
+  // 2. 更新热词（使用后端 jieba 分词结果）
+  const words = danmu.words || []
   for (const w of words) {
     wordCountMap.set(w, (wordCountMap.get(w) || 0) + 1)
   }
@@ -181,13 +284,29 @@ function processDanmu(danmu) {
 
   // 4. 更新用户累计（用于排行榜，保留所有历史数据）
   userCountMap.set(danmu.name, (userCountMap.get(danmu.name) || 0) + 1)
+
+  // 5. 更新情绪趋势（使用与趋势图相同的时间桶）
+  const sentBucket = getTrendBucket()
+  updateSentimentBucket(sentBucket)
+  const sentiment = danmu.sentiment || 'neutral'
+  if (sentiment === 'positive') sentimentPos++
+  else if (sentiment === 'negative') sentimentNeg++
+  else sentimentNeu++
+  // 写入当前桶
+  const sArr = sentimentData.value
+  if (sArr.length > 0) {
+    const cur = sArr[sArr.length - 1]
+    cur.positive = sentimentPos
+    cur.neutral = sentimentNeu
+    cur.negative = sentimentNeg
+  }
 }
 
 // ============ WebSocket ============
 function connectWebSocket() {
-  console.log('[WebSocket] 正在连接 ws://localhost:8000/ws ...')
+  console.log('[WebSocket] 正在连接 ws://127.0.0.1:8000/ws ...')
   try {
-    ws = new WebSocket('ws://localhost:8000/ws')
+    ws = new WebSocket('ws://127.0.0.1:8000/ws')
 
     ws.onopen = () => {
       console.log('[WebSocket] 连接成功')
@@ -200,8 +319,16 @@ function connectWebSocket() {
 
     ws.onmessage = (event) => {
       try {
-        const danmu = JSON.parse(event.data)
-        processDanmu(danmu)
+        const msg = JSON.parse(event.data)
+        // 提取实时/累计情绪（后端新字段，前端局部更新）
+        if (msg.realtime_sentiment) {
+          realtimeSentiment.value = msg.realtime_sentiment
+        }
+        if (msg.global_sentiment) {
+          globalSentiment.value = msg.global_sentiment
+        }
+        // 保持原有弹幕处理逻辑不变
+        processDanmu(msg)
       } catch (e) {
         console.error('[WebSocket] 解析失败:', e)
       }
@@ -233,13 +360,19 @@ function startHeartbeat() {
 onMounted(() => {
   console.log('[App.vue] 组件已挂载')
   initTrendData()
+  initSentimentData()
+  initRealtimeTrend()
   connectWebSocket()
   startHeartbeat()
+  // 每 5 秒采样一次实时情绪，写入波动趋势
+  realtimeTrendTimer = setInterval(sampleRealtimeTrend, 5000)
 })
 
 onUnmounted(() => {
   if (ws) { ws.close(); ws = null }
   if (reconnectTimer) { clearTimeout(reconnectTimer) }
+  if (realtimeTrendTimer) { clearInterval(realtimeTrendTimer) }
+  if (elapsedTimer) { clearInterval(elapsedTimer) }
 })
 
 console.log('[App.vue] 组件初始化完成')
@@ -335,11 +468,58 @@ body {
   font-family: 'Consolas', 'Courier New', monospace;
 }
 
+/* 主体：弹幕列表(左全高) + 右侧内容 */
+.body-area {
+  flex: 1;
+  display: flex;
+  gap: 12px;
+  margin-top: -6px;
+  min-height: 0;
+}
+.danmu-panel {
+  flex: 0 0 330px;
+  overflow: hidden;
+  padding-left: 30px;
+}
+
+/* 右侧：情绪 + 主内容 上下堆叠 */
+.right-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* 情绪分析区 */
+.sentiment-area {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sentiment-row {
+  display: flex;
+  gap: 12px;
+  height: 220px;
+}
+.sentiment-left {
+  flex: 0 0 250px;
+  overflow: hidden;
+}
+.sentiment-right {
+  flex: 1;
+  overflow: hidden;
+}
+.sentiment-bottom {
+  height: 170px;
+}
+
 /* 主内容区 */
 .main-content {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 1.5fr 1fr;
+  grid-template-columns: 1.5fr 1fr;
   gap: 16px;
   min-height: 0;
 }

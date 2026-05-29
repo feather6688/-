@@ -6,12 +6,10 @@
 
 import asyncio
 import atexit
-import os
 import queue
 import signal
 import sys
 import threading
-import webbrowser
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -44,7 +42,7 @@ async def root():
     return {
         "status": "运行中",
         "service": "抖音直播弹幕 AI 实时分析平台",
-        "websocket": "ws://localhost:8000/ws",
+        "websocket": "ws://127.0.0.1:8000/ws",
         "connected_clients": len(connected_clients)
     }
 
@@ -117,6 +115,9 @@ def cleanup():
 
 # ========== 入口 ==========
 if __name__ == '__main__':
+    # 修复 Windows 控制台 GBK 编码不支持 emoji 的问题
+    sys.stdout.reconfigure(encoding='utf-8')
+
     atexit.register(cleanup)
     signal.signal(signal.SIGINT, lambda sig, frame: sys.exit(0))
     signal.signal(signal.SIGTERM, lambda sig, frame: sys.exit(0))
@@ -126,6 +127,8 @@ if __name__ == '__main__':
     print("    📡  技术栈: DrissionPage + FastAPI + WebSocket + Vue3 + ECharts")
     print("=" * 60)
     print()
+
+    # 输入直播间地址
     print("支持链接格式示例：")
     print("  https://live.douyin.com/123456789")
     print()
@@ -144,9 +147,6 @@ if __name__ == '__main__':
             exit(0)
 
     print()
-    print("-" * 60)
-    print("系统启动中...")
-    print("-" * 60)
 
     # 启动弹幕监听线程
     monitor_thread = threading.Thread(
@@ -158,26 +158,19 @@ if __name__ == '__main__':
     monitor_thread.start()
     print("[主线程] 弹幕监听线程已启动")
 
-    # 自动打开前端页面
-    def open_frontend():
-        import time
-        time.sleep(2)
-        frontend_url = "http://localhost:5173"
-        print(f"[自动打开] 正在打开前端页面: {frontend_url}")
-        webbrowser.open(frontend_url)
-
-    threading.Thread(target=open_frontend, daemon=True).start()
-
+    print("-" * 60)
+    print("系统启动中...")
+    print("-" * 60)
     print("[主线程] FastAPI 服务器启动中...")
     print()
     print("=" * 60)
     print("  ✅ 服务已启动！")
-    print("  📡 WebSocket 地址: ws://localhost:8000/ws")
-    print("  🌐 后端 API 地址:  http://localhost:8000")
-    print("  🎨 前端运行方式:   cd frontend && npm run dev")
-    print("  📖 API 文档地址:   http://localhost:8000/docs")
+    print("  📡 WebSocket 地址: ws://127.0.0.1:8000/ws")
+    print("  🌐 后端 API 地址:  http://127.0.0.1:8000")
+    print("  🎨 前端地址:       http://127.0.0.1:5173")
+    print("  📖 API 文档地址:   http://127.0.0.1:8000/docs")
     print()
     print("  按 Ctrl+C 停止服务器")
     print("=" * 60)
 
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
