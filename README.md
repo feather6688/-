@@ -194,7 +194,9 @@ npm run dev
 # 终端 2：启动后端（输入直播间地址）
 cd backend
 python main.py
-# 粘贴抖音直播间链接，例如：
+点击运行 main.py 文件
+在下方终端：
+粘贴抖音直播间链接，例如：
 # https://live.douyin.com/123456789
 ```
 
