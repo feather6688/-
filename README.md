@@ -13,7 +13,7 @@
 
 ## 📖 项目介绍
 <img width="2560" height="1330" alt="image" src="https://github.com/user-attachments/assets/e75fb482-660f-4002-8503-51b3e92472e9" />  
-本项目是一套基于 Python + FastAPI + Vue3 的抖音直播弹幕实时分析平台。
+本项目是一套基于 Python + FastAPI + Vue3 的抖音直播弹幕实时分析平台。  
 
 
 系统通过 DrissionPage 自动控制浏览器进入直播间，利用 MutationObserver 实时监听页面 DOM 变化，实现直播弹幕毫秒级采集；后端对弹幕数据进行清洗、中文分词、热词统计及情绪分析，并通过 WebSocket 实时推送至前端可视化大屏。 
